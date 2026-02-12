@@ -1,0 +1,1132 @@
+{
+  "name": "ai-expense-tracker-n8n",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 💸 AI Expense Tracker — Converts PDF bank statements → categorized data → Google Sheets.\n\nBuilt with n8n, Google Drive, and OpenAI agents.",
+        "height": 272,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        16
+      ],
+      "id": "1441b8d1-52b4-436c-b832-f7b70fc5872d",
+      "name": "File Router Logic"
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1A9SRkoPBwOs4A7cf26j3QomEcP5dI9Sm",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        784,
+        896
+      ],
+      "id": "47901f9a-defd-4653-9833-50579f81f584",
+      "name": "Upload to Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EGaowhgEvbY4eJFY",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 📂 Input Sources\n\n1. **Google Drive Trigger**\n   - Watches folder for new files\n   - Supports PDFs & Images\n\n2. **Webhook Upload**\n   - Direct file upload via API\n   - POST to: /upload-expense",
+        "height": 256,
+        "width": 320,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        672
+      ],
+      "id": "bec93d8f-f94e-40bd-b0ce-686714ae43b3",
+      "name": "Input Sources1"
+    },
+    {
+      "parameters": {
+        "content": "## 🔄 File Type Router\n\n**IF Image** (jpeg/png/gif/webp):\n→ OpenAI Vision API\n\n**IF PDF**:\n→ Simple PDF Text Extractor\n\n**Both paths merge** into AI Agent",
+        "height": 208,
+        "width": 272,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        912,
+        416
+      ],
+      "id": "be8c53d9-eaf6-4681-9ca0-b5b3ced0ea04",
+      "name": "File Router Logic1"
+    },
+    {
+      "parameters": {
+        "content": "## 🤖 AI Processing\n\n1. **AI Agent**: Extracts transactions\n2. **Structure Data**: Formats as JSON\n3. **Parse & Filter**: Cleans data\n4. **Aggregate**: Prepares for sheets",
+        "height": 192,
+        "width": 320,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2224,
+        128
+      ],
+      "id": "38b3d73e-4ad1-45c9-b1a1-0da361d4531c",
+      "name": "AI Processing1"
+    },
+    {
+      "parameters": {
+        "content": "## 📊 Output to Sheets\n\n1. Gets/Creates monthly sheet\n2. Duplicates template\n3. Appends transactions\n4. Filters tax entries",
+        "height": 192,
+        "width": 320,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3136,
+        784
+      ],
+      "id": "bdd4871f-d804-43f7-b8b3-917de9411ee5",
+      "name": "Output Process1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "upload-expense",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        128,
+        1056
+      ],
+      "id": "355549bb-e240-4a35-929a-ddf85710f210",
+      "name": "Webhook - Upload File",
+      "webhookId": "upload-expense-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract file from webhook upload\nconst item = $input.item;\n\n// Check if file was uploaded via webhook\nif (item.binary && Object.keys(item.binary).length > 0) {\n  const binaryKey = Object.keys(item.binary)[0];\n  const binaryData = item.binary[binaryKey];\n  \n  return {\n    json: {\n      fileName: binaryData.fileName || 'webhook-upload',\n      mimeType: binaryData.mimeType,\n      source: 'webhook'\n    },\n    binary: {\n      data: binaryData\n    }\n  };\n}\n\n// If no file, return error\nthrow new Error('No file uploaded. Please attach a file to your request.');"
+      },
+      "id": "1c82a379-a868-46c3-8e75-25609a51d226",
+      "name": "Extract File from Upload",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        560,
+        1056
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1A9SRkoPBwOs4A7cf26j3QomEcP5dI9Sm",
+          "mode": "id"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        448,
+        672
+      ],
+      "id": "ec69263c-7d5b-4449-8646-c53736f52491",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EGaowhgEvbY4eJFY",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        688,
+        672
+      ],
+      "id": "2bc45cf0-6290-45c9-a463-e3285af2b8bd",
+      "name": "Download File",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EGaowhgEvbY4eJFY",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Manual or watched-folder trigger. Upload PDFs here.",
+        "height": 80,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        64,
+        1200
+      ],
+      "id": "80b6a591-804a-42c8-8ce2-b6af005d91d1",
+      "name": "Sticky Note14"
+    },
+    {
+      "parameters": {
+        "content": "**Google Drive (Input Folder)**\nUpload your bank or credit card PDFs here.\n\n**Drive Folder — AI Expense Tracker Inputs**\n**Folder ID:** `16G0cnl6PA_ds68Q-sj4-E71sdmt8K0Jp`\n\n**Google Sheets (Output Dashboard)**\nAll parsed and categorized transactions are appended here.\n\n**Google Sheets Template — AI Expense Tracker**\nMake a Copy of the Template\n**Spreadsheet ID:** `16mxje1Kdk4GBcfd0IFeOkeEBC8NVWOkoyWUM0rr6UHU`",
+        "height": 496,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        336,
+        0
+      ],
+      "id": "e4bd1762-0d30-4fb8-aac3-4d4463014394",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "Duplicates the ‘Expenses Model’ sheet → creates ‘Expenses {MMM yyyy}’ and appends data.",
+        "height": 96,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3168,
+        672
+      ],
+      "id": "a30973e7-e9da-45fe-9b47-5bd8e26ef55a",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "content": "Manual or watched-folder trigger. Upload PDFs here.",
+        "height": 80,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        384,
+        848
+      ],
+      "id": "722f3677-d9cc-4d2f-8fb5-015384dc0f9a",
+      "name": "Sticky Note12"
+    },
+    {
+      "parameters": {
+        "content": "Maps extracted transactions to fixed categories and normalizes schema.",
+        "height": 80,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2432,
+        336
+      ],
+      "id": "b6afc4d7-2ca5-4e0c-af8c-f258c6213eb8",
+      "name": "Sticky Note15"
+    },
+    {
+      "parameters": {
+        "content": "Extracts structured transactions from PDF text using AI.",
+        "height": 80,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        336
+      ],
+      "id": "8a92f165-2d2d-42c7-887d-12ca5fd4cf94",
+      "name": "Sticky Note16"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "chatgpt-4o-latest"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2112,
+        656
+      ],
+      "id": "918a2abc-5575-4145-b395-f9fc47abcd90",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "3XyRBQSg3nreXhgr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "chatgpt-4o-latest"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2448,
+        656
+      ],
+      "id": "8c3cb660-4cb7-4f37-bf25-2bca9bd5ab9c",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "3XyRBQSg3nreXhgr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "is-image",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "image/",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cc01077b-e7e2-490e-a376-29cc6897314c",
+      "name": "Route by File Type1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function removeNewlines(text) {\n  if (typeof text !== 'string') {\n    console.error(\"Input must be a string.\");\n    return \"\";\n  }\n  return text.replace(/\\n/g, ' ');\n}\n\nconst inputText = $input.first().json.text;\nconst cleanedText = removeNewlines(inputText);\nconsole.log(\"Original Text:\");\nconsole.log(inputText);\nconsole.log(\"\\\\n------------------\\\\n\");\nconsole.log(\"Cleaned Text:\");\nconsole.log(cleanedText);\n\nreturn { cleanedText: cleanedText };"
+      },
+      "id": "f3727a4f-f9c4-453c-9298-f0fb252744f4",
+      "name": "Data Parser & Cleaner",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1824,
+        976
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ccd95b23-ca0d-4e0a-a2af-c0e4fc9aae4e",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "60ae1066-59ed-4472-93f4-076aaf4ddcfc",
+      "name": "Get PDF Data Only",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1648,
+        976
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "a4240a36-b545-459f-858b-443cf873c738",
+      "name": "Extract Files/File's Data",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        1456,
+        976
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1264,
+        656
+      ],
+      "id": "8d8d40de-a656-4d20-850c-1c192271131c",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EGaowhgEvbY4eJFY",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an OCR engine. Extract ALL visible text from the provided image with maximum fidelity. Preserve line breaks and order exactly as they appear. Do not summarize, translate, or add commentary. Include punctuation, symbols, emojis, URLs, and numbers. If text is skewed or rotated, still transcribe it in the natural reading order. If you cannot read a piece of text, output it as '[illegible]'. Output plain text only.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        { \"type\": \"text\", \"text\": \"Transcribe ALL text from this image. Keep original line breaks and order. Return plain text only.\" },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"{{ $json.dataUrl }}\"\n          }\n        }\n      ]\n    }\n  ],\n  \"max_tokens\": 4000,\n  \"temperature\": 0\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1648,
+        656
+      ],
+      "id": "6346eb64-3cea-4dc9-ae7c-6aa27c1aaa2f",
+      "name": "Analyze image",
+      "credentials": {
+        "openAiApi": {
+          "id": "3XyRBQSg3nreXhgr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst out = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n\n  const binaryKey = Object.keys(item.binary || {})[0] || 'data';\n  const binaryData = item.binary?.[binaryKey];\n\n  if (!binaryData) throw new Error('No binary data found in the item.');\n\n  const fileName = binaryData.fileName || 'unknown';\n\n  // ✅ REAL buffer -> base64\n  const buffer = await this.helpers.getBinaryDataBuffer(i, binaryKey);\n  const base64 = buffer.toString('base64');\n\n  // ✅ normalize mimeType\n  let mimeType = (binaryData.mimeType || 'image/jpeg').toLowerCase();\n  if (mimeType === 'image/jpg') mimeType = 'image/jpeg';\n  mimeType = mimeType.split(';')[0].trim();\n\n  out.push({\n    json: {\n      fileName,\n      mimeType,\n      base64Preview: base64.slice(0, 12), // debug\n      imageBase64: base64,\n      dataUrl: `data:${mimeType};base64,${base64}`,\n    }\n  });\n}\n\nreturn out;\n"
+      },
+      "id": "99899539-5160-475c-baed-2f0269ee543c",
+      "name": "Binary To Json",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1456,
+        656
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the full OpenAI response\nconst data = $input.first().json;\n\n// Safely extract possible text locations from the response\nlet visionOutput =\n  data.message?.content ||\n  data.choices?.[0]?.message?.content ||\n  data.choices?.[0]?.message?.content?.[0]?.text ||\n  data.content?.[0]?.text ||\n  null;\n\n// If the content is an array (common in GPT-4o), join all text parts\nif (Array.isArray(visionOutput)) {\n  visionOutput = visionOutput\n    .map((c) => (typeof c === \"string\" ? c : c.text || \"\"))\n    .join(\"\\n\");\n}\n\n// Validation: ensure we have content\nif (!visionOutput || typeof visionOutput !== \"string\" || !visionOutput.trim()) {\n  throw new Error(\"No valid vision output received from model response\");\n}\n\n// Clean up: remove code fences, trim whitespace\nconst cleanedText = visionOutput\n  .replace(/^```[a-zA-Z]*\\n?/, \"\")\n  .replace(/```$/, \"\")\n  .trim();\n\n// Return the cleaned result in your preferred format\nreturn {\n  cleanedText: cleanedText\n};\n"
+      },
+      "id": "a90dfe07-ed9d-48a7-8edc-d735180279ad",
+      "name": "Parse Vision Response",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1824,
+        656
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "Append final categorized transactions to Google Sheet using defined mapping.",
+        "height": 96,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3952,
+        672
+      ],
+      "id": "770d354a-e0d8-4730-8ddc-98e652888c8b",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1264,
+        976
+      ],
+      "id": "f0a466c0-a553-4eaa-930f-10b26c22448d",
+      "name": "Download file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EGaowhgEvbY4eJFY",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Now process the following text:\n\n{{$json.cleanedText}}",
+        "options": {
+          "systemMessage": "You are a GLOBAL expense extraction specialist.\n\nYou will receive raw text extracted from a document (PDF or image OCR). The document may be:\n- a receipt (paper receipt),\n- an invoice,\n- a bank/credit card statement,\nand it may be in ANY language (Turkish, English, Dutch, German, Spanish, etc).\n\nGOAL\nExtract real expense transactions ONLY (things the user paid for).\nReturn output in a strict single-line-per-transaction format.\n\nSTRICT OUTPUT FORMAT (one transaction per line, no extra text):\nMonth | Date | Concept | Payment Method | Category | Amount Currency | Recurring\n\nWhere:\n- Month: English month name derived from Date (January...December)\n- Date: YYYY-MM-DD\n- Concept: merchant/item description (NOT headers)\n- Payment Method: Credit Card | Debit Card | Cash | Transfer | Unknown\n- Category: choose ONE from the allowed list below\n- Amount Currency: numeric amount + ISO currency code (example: \"245.90 TRY\")\n- Recurring: Yes | No\n\nALLOWED CATEGORIES (must choose exactly one):\nVacation, Supermarket, Gastronomy, Services, Gaming, Care Yourself, Fashion, Entertainment,\nNightclubs, Shopping, Transport, Friends, Pets, Family, Kids, Car, Beauty, Charity, Hobbies,\nDelivery, Education, Sports, Work, Technology, Home, Unnecessary, Accommodation, Green Grocery\n\nDOCUMENT TYPE RULES\n1) If the document is an ITEMIZED RECEIPT/INVOICE:\n   - Extract each purchased item/service line as a separate transaction line.\n   - Do NOT include store header, address, tax lines, subtotals or totals as transactions.\n   - Ignore lines like: TOTAL, SUBTOTAL, TAX, VAT, KDV, IVA, BTW, MwSt, SERVICE FEE, ROUNDING, DISCOUNT, CHANGE.\n\n2) If the document is a BANK/CARD STATEMENT or NOT itemized:\n   - Extract each transaction row that includes a merchant/description + amount.\n   - Keep only expenses (money out). If the row is income/refund/salary/credit, SKIP it.\n   - If amounts are shown with negative sign for expenses (e.g. -245.90), output Amount as positive (245.90).\n\nHEADER / NOISE GUARDRAILS (never output as Concept)\n- Company title, legal/tax ids, addresses, IBAN, account numbers, CUIT/VKN, POS terminal ids\n- “Invoice No”, “Fiş No”, “Tarih/Saat” lines (unless needed only for Date)\n- Tax-only lines: KDV/ÖTV/BSMV/KKDF/Damga Vergisi/Perception/Retención/Impuesto/MwSt/BTW\n\nDATE RULES\n- Prefer the transaction date found in the document.\n- If only one document date exists, use it for all lines.\n- Output Date strictly as YYYY-MM-DD.\n- If ambiguous, prefer the most common local format found in the text:\n  - Turkey often uses DD.MM.YYYY or DD/MM/YYYY\n  - US uses MM/DD/YYYY\n  - EU often uses DD/MM/YYYY\n\nPAYMENT METHOD DETECTION (multi-language)\n- Credit Card if mentions: \"Credit\", \"Kredi\", \"Kredi Kart\", \"Visa\", \"Mastercard\", \"Amex\"\n- Debit Card if mentions: \"Debit\", \"Banka Kart\", \"Débito\"\n- Cash if mentions: \"Cash\", \"Nakit\", \"Contado\", \"Bar\"\n- Transfer if mentions: \"Havale\", \"EFT\", \"Transfer\", \"SEPA\"\n- Else: Unknown\n\nCURRENCY DETECTION (GLOBAL)\n- If symbols/words appear: ₺/TL -> TRY, € -> EUR, $ -> USD (unless clearly says ARS, CAD, AUD etc), £ -> GBP\n- If currency code appears (TRY/EUR/USD/GBP etc) use it.\n- If unknown but Turkish language hints exist, default to TRY.\n- Always output ISO code.\n\nAMOUNT NORMALIZATION (important)\nThe amount can appear as:\n- 1.234,56  (EU/TR style)\n- 1,234.56  (US style)\n- 245,90 ₺\nNormalize to a standard number with dot decimal:\n- 1.234,56 -> 1234.56\n- 1,234.56 -> 1234.56\nRemove thousands separators.\nIf amount ends with ,00 or .00 you may output as integer (e.g., 120.00 -> 120) but decimals are allowed.\n\nCATEGORY MAPPING HEURISTICS (simple + stable)\n- Supermarket / Green Grocery: markets, grocery, fruits/vegetables\n- Delivery: food delivery apps (Getir, Yemeksepeti, Thuisbezorgd, Uber Eats)\n- Gastronomy: restaurants/cafes/coffee/bakery\n- Transport: taxi, metro, bus, train, fuel, parking\n- Services: subscriptions/services/utilities/bills/bank fees\n- Technology: electronics, phone/computer accessories\n- Home: household supplies, furniture, home improvement\n- Accommodation: hotels, airbnb\n- Education: course, training, exam fees\n- If unsure: Shopping\n\nRECURRING\n- Yes only for obvious subscriptions/memberships (Netflix, Spotify, iCloud, Gym monthly, etc)\n- Otherwise No\n\nFINAL RULES\n- Do not add explanations, headings, or markdown.\n- Output ONLY valid transaction lines in the strict format.\n- If nothing usable is found, output NOTHING (empty response).\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2112,
+        464
+      ],
+      "id": "40169115-d351-4573-8994-52daff5b9317",
+      "name": "AI Agent",
+      "alwaysOutputData": false,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Convert the following expense data into a structured JSON array format suitable for Google Sheets:\n\n{{ $json.output }}\n\nReturn ONLY a valid JSON array with no markdown formatting or additional text.",
+        "options": {
+          "systemMessage": "You are a data structuring specialist.\n\nTASK\nConvert expense transaction lines into a clean JSON array.\n\nINPUT FORMAT (one transaction per line):\nMonth | Date | Concept | Payment Method | Category | Amount Currency | Recurring\n\nOUTPUT FORMAT\nReturn ONLY a valid JSON array (no markdown, no extra text).\nEach element must be an object with these exact keys:\n\n- Month (string)\n- Date (string, YYYY-MM-DD)\n- Concept (string)\n- Payment_Method (string)\n- Category (string)\n- Amount (number)\n- Currency (string, ISO code)\n- Recurring (string: \"Yes\" or \"No\")\n\nPARSING RULES\n1) Ignore empty lines or lines that do not match the pipe-separated format.\n2) Amount Currency field example: \"245.90 TRY\"\n   - Amount must be a number (float or int)\n   - Currency must be a string (e.g., \"TRY\", \"EUR\", \"USD\", \"GBP\")\n3) Amount may contain EU/TR separators (1.234,56). Normalize before parsing:\n   - If both \".\" and \",\" exist: the LAST separator is the decimal separator.\n     - \"1.234,56\" -> 1234.56\n     - \"1,234.56\" -> 1234.56\n   - If only \",\" exists and looks like decimal -> replace with \".\"\n4) If Recurring is missing, set it to \"No\".\n\nVALIDATION\n- Return valid JSON only\n- No explanations, no code fences\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2448,
+        464
+      ],
+      "id": "cee1ac92-8507-48b0-8482-d9bd8c1ce730",
+      "name": "AI Agent - Structure Data",
+      "alwaysOutputData": false,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/16mxje1Kdk4GBcfd0IFeOkeEBC8NVWOkoyWUM0rr6UHU",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3088,
+        464
+      ],
+      "id": "33016f08-d68b-4c7b-827f-5e22885e2f05",
+      "name": "Get Expenses Model Sheet ID",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fHtJWG0BXZ6c6wSE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.output;\n\nlet cleanOutput = output.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\ntry {\n  const transactions = JSON.parse(cleanOutput);\n  \n  return transactions.map(transaction => ({\n    json: transaction\n  }));\n} catch (error) {\n  console.error('Failed to parse JSON:', error);\n  console.error('Output was:', cleanOutput);\n  throw new Error('Could not parse AI output as JSON: ' + error.message);\n}"
+      },
+      "id": "43af7ecc-5a50-4b51-bb85-4ce092f77d1b",
+      "name": "Parse JSON Output",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2768,
+        288
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\n\nreturn {\n  json: {\n    transactions: allItems.map(item => item.json),\n    transactionCount: allItems.length\n  }\n};"
+      },
+      "id": "a419e84c-21c3-4435-a3e3-76db0ca85461",
+      "name": "Aggregate All Transactions",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2928,
+        288
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const sheets = $input.first().json.sheets;\nconst expensesModelSheet = sheets.find(sheet => sheet.properties.title === 'Expenses Model');\n\nif (!expensesModelSheet) {\n  throw new Error('Expenses Model sheet not found!');\n}\n\nconst previousItem = $('Aggregate All Transactions').first().json;\n\nreturn {\n  json: {\n    sheetId: expensesModelSheet.properties.sheetId,\n    sheetName: expensesModelSheet.properties.title,\n    transactions: previousItem.transactions,\n    transactionCount: previousItem.transactionCount\n  }\n};"
+      },
+      "id": "d812293a-e4ff-4c80-83eb-8246aef0f400",
+      "name": "Extract Sheet ID",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3248,
+        288
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const transactions = $('Extract Sheet ID').first().json.transactions;\n\nreturn transactions.map(transaction => ({\n  json: transaction\n}));"
+      },
+      "id": "3eb8d986-4cd6-467c-bb6f-4380dfed58f3",
+      "name": "Split Transactions for Append",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3600,
+        272
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/16mxje1Kdk4GBcfd0IFeOkeEBC8NVWOkoyWUM0rr6UHU:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"requests\": [{ \"duplicateSheet\": { \"sourceSheetId\": $json.sheetId, \"newSheetName\": \"Expenses \" + $now.format(\"MMM yyyy\") } }] } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3424,
+        464
+      ],
+      "id": "a7eba1f6-3379-4888-9db5-4e3c5dfe92e2",
+      "name": "Duplicate Sheet Page via API",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fHtJWG0BXZ6c6wSE",
+          "name": "Google Sheets account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Tax / fee related terms to exclude (TR + EU + ES + Generic)\nconst excludedTerms = [\n  // --- Spanish / LATAM ---\n  'Impuesto', 'Impuesto de Sellos',\n  'Percep', 'Percepción', 'Retención',\n  'PIIBB', 'IVA', 'IVA RG', 'DB.RG',\n\n  // --- Turkey ---\n  'KDV', 'ÖTV', 'BSMV', 'KKDF', 'Damga Vergisi',\n  'Vergi', 'Masraf', 'Komisyon', 'Faiz',\n\n  // --- EU common ---\n  'VAT', 'BTW', 'MwSt', 'USt', 'TVA',\n\n  // --- Generic ---\n  'Tax', 'Fee', 'Commission', 'Interest', 'Stamp Duty'\n];\n\nreturn items\n  .filter(item => {\n    // Keep only rows that have a month\n    if (!item.json.Month) return false;\n\n    // Exclude tax/fee-only lines\n    const concept = (item.json.Concept || '').toLowerCase();\n    const hasExcludedTerm = excludedTerms.some(term =>\n      concept.includes(term.toLowerCase())\n    );\n\n    return !hasExcludedTerm;\n  })\n  .map(item => ({\n    json: {\n      Month: item.json.Month,\n      Date: item.json.Date,\n      Concept: item.json.Concept,\n      Payment_Method: item.json.Payment_Method,\n      Category: item.json.Category,\n      Amount: item.json.Amount,\n      Currency: item.json.Currency,\n      Recurring: item.json.Recurring \n    }\n  }));\n"
+      },
+      "id": "1d7b1a8c-7a2e-450f-b7f9-ad49d9c001ea",
+      "name": "Filter Transaction Data Only",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        3808,
+        272
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "16mxje1Kdk4GBcfd0IFeOkeEBC8NVWOkoyWUM0rr6UHU",
+          "mode": "list",
+          "cachedResultName": "balance",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/16mxje1Kdk4GBcfd0IFeOkeEBC8NVWOkoyWUM0rr6UHU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Expenses ' + $now.format('MMM yyyy') }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Month": "={{ $json.Month }}",
+            "Date": "={{ $json.Date }}",
+            "Concept": "={{ $json.Concept }}",
+            "Payment Method": "={{ $json.Payment_Method }}",
+            "Category": "={{ $json.Category }}",
+            "Amount": "={{ $json.Amount }}",
+            "Currency": "={{ $json.Currency }}"
+          },
+          "matchingColumns": [
+            "Month"
+          ],
+          "schema": [
+            {
+              "id": "Month",
+              "displayName": "Month",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Concept",
+              "displayName": "Concept",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Payment Method",
+              "displayName": "Payment Method",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Total in ARS",
+              "displayName": "Total in ARS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        4016,
+        464
+      ],
+      "id": "d8d92b94-eb1a-4451-8f6c-68b611065874",
+      "name": "Append to Google Sheets",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fHtJWG0BXZ6c6wSE",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Upload File": {
+      "main": [
+        [
+          {
+            "node": "Extract File from Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract File from Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Route by File Type1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Structure Data",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by File Type1": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Parser & Cleaner": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PDF Data Only": {
+      "main": [
+        [
+          {
+            "node": "Data Parser & Cleaner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Files/File's Data": {
+      "main": [
+        [
+          {
+            "node": "Get PDF Data Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Route by File Type1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Binary To Json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Parse Vision Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Binary To Json": {
+      "main": [
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Vision Response": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file1": {
+      "main": [
+        [
+          {
+            "node": "Extract Files/File's Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Structure Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Structure Data": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Expenses Model Sheet ID": {
+      "main": [
+        [
+          {
+            "node": "Extract Sheet ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON Output": {
+      "main": [
+        [
+          {
+            "node": "Aggregate All Transactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate All Transactions": {
+      "main": [
+        [
+          {
+            "node": "Get Expenses Model Sheet ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Sheet ID": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Sheet Page via API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Transactions for Append": {
+      "main": [
+        [
+          {
+            "node": "Filter Transaction Data Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Sheet Page via API": {
+      "main": [
+        [
+          {
+            "node": "Split Transactions for Append",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Transaction Data Only": {
+      "main": [
+        [
+          {
+            "node": "Append to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "f00d9b9f-36c7-452e-99db-22583cc08990",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5d08a4456fc089d2af06cb5422da5e3073f28e4fbbd515bdbf869d8db959d298"
+  },
+  "id": "my1psFNk9U7ErCGkAqUpO",
+  "tags": []
+}
